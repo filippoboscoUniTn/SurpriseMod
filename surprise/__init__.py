@@ -3,6 +3,8 @@ from pkg_resources import get_distribution
 from .prediction_algorithms import AlgoBase
 from .prediction_algorithms import NormalPredictor
 from .prediction_algorithms import BaselineOnly
+from .prediction_algorithms import KNNDumb
+from .prediction_algorithms import KNNBasicAlpha
 from .prediction_algorithms import KNNBasic
 from .prediction_algorithms import KNNWithMeans
 from .prediction_algorithms import KNNWithZScore
@@ -24,6 +26,7 @@ from . import model_selection
 from . import dump
 
 __all__ = ['AlgoBase', 'NormalPredictor', 'BaselineOnly', 'KNNBasic',
+           'KNNDumb', 'KNNBasicAlpha',
            'KNNWithMeans', 'KNNBaseline', 'SVD', 'SVDpp', 'NMF', 'SlopeOne',
            'CoClustering', 'PredictionImpossible', 'Prediction', 'Dataset',
            'Reader', 'Trainset', 'dump', 'KNNWithZScore', 'get_dataset_dir',

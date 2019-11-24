@@ -53,6 +53,127 @@ class SymmetricAlgo(AlgoBase):
             return i_stuff, u_stuff
 
 
+class KNNDumb(SymmetricAlgo):
+    """Simplest CF algorithm.
+
+    Estimates for the ratings are just the average of the kNN.
+
+    Args:
+        k(int): The (max) number of neighbors to take into account for
+            aggregation (see :ref:`this note <actual_k_note>`). Default is
+            ``40``.
+        min_k(int): The minimum number of neighbors to take into account for
+            aggregation. If there are not enough neighbors, the prediction is
+            set to the global mean of all ratings. Default is ``1``.
+        sim_options(dict): A dictionary of options for the similarity
+            measure. See :ref:`similarity_measures_configuration` for accepted
+            options.
+        verbose(bool): Whether to print trace messages of bias estimation,
+            similarity, etc.  Default is True.
+    """
+
+    def __init__(self, k=40, min_k=1, sim_options={}, verbose=True, **kwargs):
+
+        SymmetricAlgo.__init__(self, sim_options=sim_options, verbose=verbose,
+                               **kwargs)
+        self.k = k
+        self.min_k = min_k
+
+    def fit(self, trainset):
+
+        SymmetricAlgo.fit(self, trainset)
+        self.sim = self.compute_similarities()
+
+        return self
+
+    def estimate(self, u, i):
+
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unkown.')
+
+        x, y = self.switch(u, i)
+
+        neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[0])
+
+        # compute average
+        sum, actual_k = 0, 0
+        for (sim, r) in k_neighbors:
+            if sim > 0:
+                sum += r
+                actual_k += 1
+        if actual_k < self.min_k:
+            raise PredictionImpossible('Not enough neighbors.')
+
+        est = sum / actual_k
+
+        details = {'actual_k': actual_k}
+        return est, details
+
+
+class KNNBasicAlpha(SymmetricAlgo):
+    """A basic collaborative filtering algorithm with distance amplification.
+
+    depending on the ``user_based`` field of the ``sim_options`` parameter.
+
+    Args:
+        alpha(float): Similatiries are elevated to the ''alpha'' power in order to
+            increase the relative contribution of near items or users.
+        k(int): The (max) number of neighbors to take into account for
+            aggregation (see :ref:`this note <actual_k_note>`). Default is
+            ``40``.
+        min_k(int): The minimum number of neighbors to take into account for
+            aggregation. If there are not enough neighbors, the prediction is
+            set to the global mean of all ratings. Default is ``1``.
+        sim_options(dict): A dictionary of options for the similarity
+            measure. See :ref:`similarity_measures_configuration` for accepted
+            options.
+        verbose(bool): Whether to print trace messages of bias estimation,
+            similarity, etc.  Default is True.
+    """
+
+    def __init__(self, alpha=2, k=40, min_k=1, sim_options={}, verbose=True, **kwargs):
+
+        SymmetricAlgo.__init__(self, sim_options=sim_options, verbose=verbose,
+                               **kwargs)
+        self.k = k
+        self.min_k = min_k
+        self.alpha = alpha
+
+    def fit(self, trainset):
+
+        SymmetricAlgo.fit(self, trainset)
+        self.sim = self.compute_similarities()
+
+        return self
+
+    def estimate(self, u, i):
+
+        if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
+            raise PredictionImpossible('User and/or item is unkown.')
+
+        x, y = self.switch(u, i)
+
+        neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[0])
+
+        # compute weighted average
+        sum_sim = sum_ratings = actual_k = 0
+        for (sim, r) in k_neighbors:
+            if sim > 0:
+                sum_sim += (sim ** self.alpha)
+                sum_ratings += (sim ** self.alpha) * r
+                actual_k += 1
+
+        if actual_k < self.min_k:
+            raise PredictionImpossible('Not enough neighbors.')
+
+        est = sum_ratings / sum_sim
+
+        details = {'actual_k': actual_k}
+        return est, details
+
+
 class KNNBasic(SymmetricAlgo):
     """A basic collaborative filtering algorithm.
 

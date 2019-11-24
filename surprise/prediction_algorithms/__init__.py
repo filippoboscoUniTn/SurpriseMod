@@ -24,6 +24,8 @@ from .algo_base import AlgoBase
 from .random_pred import NormalPredictor
 from .baseline_only import BaselineOnly
 from .knns import KNNBasic
+from .knns import KNNDumb
+from .knns import KNNBasicAlpha
 from .knns import KNNBaseline
 from .knns import KNNWithMeans
 from .knns import KNNWithZScore
@@ -37,6 +39,7 @@ from .predictions import PredictionImpossible
 from .predictions import Prediction
 
 __all__ = ['AlgoBase', 'NormalPredictor', 'BaselineOnly', 'KNNBasic',
+           'KNNDumb', 'KNNBasicAlpha',
            'KNNBaseline', 'KNNWithMeans', 'SVD', 'SVDpp', 'NMF', 'SlopeOne',
            'CoClustering', 'PredictionImpossible', 'Prediction',
            'KNNWithZScore']
