@@ -173,7 +173,7 @@ class Dataset:
         return raw_ratings
 
     def construct_trainset(self, raw_trainset):
-        print("Constructing dataset")
+        #print("Constructing dataset")
         raw2inner_id_users = {}
         raw2inner_id_items = {}
 
@@ -185,26 +185,26 @@ class Dataset:
 
         # user raw id, item raw id, translated rating, time stamp
         for urid, irid, r, timestamp in raw_trainset:
-            print("urid : {},\tirid : {},\tr : {},\ttimestamp : {}".format(urid,irid,r,timestamp))
+            #print("urid : {},\tirid : {},\tr : {},\ttimestamp : {}".format(urid,irid,r,timestamp))
             try:
                 uid = raw2inner_id_users[urid]
-                print("uid : {}".format(uid))
+                #print("uid : {}".format(uid))
             except KeyError:
-                print("KeyError in raw2inner_id_users[urid] @dataset.construct_trainset")
+                #print("KeyError in raw2inner_id_users[urid] @dataset.construct_trainset")
                 uid = current_u_index
                 raw2inner_id_users[urid] = current_u_index
                 current_u_index += 1
             try:
                 iid = raw2inner_id_items[irid]
-                print("iid : {}".format(iid))
+                #print("iid : {}".format(iid))
             except KeyError:
-                print("KeyError in raw2inner_id_items[irid] @dataset.construct_trainset")
+                #print("KeyError in raw2inner_id_items[irid] @dataset.construct_trainset")
                 iid = current_i_index
                 raw2inner_id_items[irid] = current_i_index
                 current_i_index += 1
 
-            print("appending {}, {} in ur[{}]".format(iid, r, uid))
-            print("appending {}, {} in ir[{}]".format(uid, r, iid))
+            #print("appending {}, {} in ur[{}]".format(iid, r, uid))
+            #print("appending {}, {} in ir[{}]".format(uid, r, iid))
             ur[uid].append((iid, r))
             ir[iid].append((uid, r))
 

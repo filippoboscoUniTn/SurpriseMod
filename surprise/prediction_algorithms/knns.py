@@ -93,8 +93,17 @@ class KNNDumb(SymmetricAlgo):
 
         x, y = self.switch(u, i)
 
-        neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
-        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[0])
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(x2, distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
+        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[1])
 
         # compute average
         sum, actual_k = 0, 0
@@ -154,8 +163,17 @@ class KNNBasicAlpha(SymmetricAlgo):
 
         x, y = self.switch(u, i)
 
-        neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
-        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[0])
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(x2, distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
+        k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[1])
 
         # compute weighted average
         sum_sim = sum_ratings = actual_k = 0
@@ -228,7 +246,16 @@ class KNNBasic(SymmetricAlgo):
 
         x, y = self.switch(u, i)
 
-        neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
         k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[0])
 
         # compute weighted average
@@ -311,7 +338,16 @@ class KNNWithMeans(SymmetricAlgo):
 
         x, y = self.switch(u, i)
 
-        neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(x2, distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
         k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[1])
 
         est = self.means[x]
@@ -416,7 +452,16 @@ class KNNBaseline(SymmetricAlgo):
         if not (self.trainset.knows_user(u) and self.trainset.knows_item(i)):
             return est
 
-        neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(x2, distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
         k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[1])
 
         # compute weighted average
@@ -512,7 +557,16 @@ class KNNWithZScore(SymmetricAlgo):
 
         x, y = self.switch(u, i)
 
-        neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+        batched = self.sim_options.get('batched', False)
+
+        if batched:
+            with h5py.File(self.sim_options['file_path'], "r") as f:
+                dset_path = self.sim_options['group_name'] + '/' + self.sim_options['dset_name']
+                distanze_u = f[dset_path][u, :]
+                neighbors = [(x2, distanze_u[x, x2], r) for (x2, r) in self.yr[y]]
+        else:
+            neighbors = [(x2, self.sim[x, x2], r) for (x2, r) in self.yr[y]]
+
         k_neighbors = heapq.nlargest(self.k, neighbors, key=lambda t: t[1])
 
         est = self.means[x]

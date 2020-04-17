@@ -8,11 +8,12 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from .. import similarities as sims
+from .. import mySimilarities as mysims
 from .predictions import PredictionImpossible
 from .predictions import Prediction
 from .optimize_baselines import baseline_als
 from .optimize_baselines import baseline_sgd
-
+import h5py
 
 class AlgoBase(object):
     """Abstract class where is defined the basic behavior of a prediction
@@ -217,21 +218,62 @@ class AlgoBase(object):
         Returns:
             The similarity matrix."""
 
-        construction_func = {'cosine': sims.cosine,
-                             'msd': sims.msd,
-                             'pearson': sims.pearson,
-                             'pearson_baseline': sims.pearson_baseline}
-
+        construction_func = {
+            'cosine': sims.cosine,
+            'msd': sims.msd,
+            'pearson': sims.pearson,
+            'pearson_baseline': sims.pearson_baseline
+        }
+        batched_construction_func = {
+            'cosine': mysims.batched_cosine,
+            'msd': mysims.batched_msd,
+            'pearson': mysims.batched_pearson,
+            'pearson_baseline': mysims.batched_pearson_baseline
+        }
         if self.sim_options['user_based']:
-            n_x, yr = self.trainset.n_users, self.trainset.ir
+            n_x, yr, n_y, xr = self.trainset.n_users, self.trainset.ir, self.trainset.n_items, self.trainset.ur
         else:
-            n_x, yr = self.trainset.n_items, self.trainset.ur
+            n_x, yr, n_y, xr = self.trainset.n_items, self.trainset.ur, self.trainset.n_users, self.trainset.ir
 
         min_support = self.sim_options.get('min_support', 1)
-
-        args = [n_x, yr, min_support]
-
         name = self.sim_options.get('name', 'msd').lower()
+
+        if not self.sim_options.get('batched'):
+            args = [n_x, yr, min_support]
+            sim_func = construction_func[name]
+
+        elif self.sim_options.get('batched'):
+            try:
+                file_path = self.sim_options['file_path']
+            except KeyError:
+                raise ValueError('file_path options required for batched calculations')
+            batch_size = self.sim_options.get('batch_size', 1000)
+            group_name = self.sim_options.get('group_name', 'similarity_matrix')
+            dset_name = self.sim_options.get('dset_name', 'sims_'+name)
+            if dset_name == 'sims_'+name:
+                self.sim_options['dset_name'] = dset_name
+            try:
+                f = h5py.File(file_path, "w-")
+            except OSError:
+                print("File già esistente")
+                raise ValueError('File {} già esistente'.format(file_path))
+            try:
+                sim_group = f.create_group(group_name)
+            except ValueError:
+                print("Gruppo 'similarity_matrix' già esistente")
+                sim_group = f[group_name]
+            sim_group.create_dataset(
+                dset_name,
+                shape=(n_x, n_x),
+                dtype="f8", #floating point su 8byte -> np.double (float su 64 bit)
+                chunks=(1, n_x), #1 chunk per ogni riga
+                maxshape=(n_x, n_x), #Dimensione masssima nota a priori, numero utenti/oggetti x numero utenti/oggetti
+                compression="gzip"
+            )
+            f.close()
+            args = [n_x, yr, xr, min_support, batch_size, file_path, group_name, dset_name]
+            sim_func = batched_construction_func[name]
+
         if name == 'pearson_baseline':
             shrinkage = self.sim_options.get('shrinkage', 100)
             bu, bi = self.compute_baselines()
@@ -239,13 +281,12 @@ class AlgoBase(object):
                 bx, by = bu, bi
             else:
                 bx, by = bi, bu
-
             args += [self.trainset.global_mean, bx, by, shrinkage]
 
         try:
             if getattr(self, 'verbose', False):
                 print('Computing the {0} similarity matrix...'.format(name))
-            sim = construction_func[name](*args)
+            sim = sim_func(*args)
             if getattr(self, 'verbose', False):
                 print('Done computing similarity matrix.')
             return sim
@@ -274,14 +315,28 @@ class AlgoBase(object):
             The list of the ``k`` (inner) ids of the closest users (or items)
             to ``iid``.
         """
-
-        if self.sim_options['user_based']:
-            all_instances = self.trainset.all_users
+        if self.sim_options['batched']:
+            try:
+                file_path = self.sim_options['file_path']
+                group = self.sim_options.get('group_name', 'similarity_matrix')
+                dset_name = self.sim_options['dset_name']
+                f = h5py.File(file_path, "r")
+            except OSError:
+                raise ValueError("File {} inesistente".format(file_path))
+            dset = f[group + '/' + dset_name]
+            iid_distances = dset[iid, :]
+            named_distances = [(i, d) for i,d in enumerate(iid_distances)]
+            named_distances.sort(key=lambda tple: tple[1], reverse=True)
+            k_nearest_neighbors = [i for (i, _) in named_distances[:k]]
+            f.close()
         else:
-            all_instances = self.trainset.all_items
+            if self.sim_options['user_based']:
+                all_instances = self.trainset.all_users
+            else:
+                all_instances = self.trainset.all_items
 
-        others = [(x, self.sim[iid, x]) for x in all_instances() if x != iid]
-        others.sort(key=lambda tple: tple[1], reverse=True)
-        k_nearest_neighbors = [j for (j, _) in others[:k]]
+            others = [(x, self.sim[iid, x]) for x in all_instances() if x != iid]
+            others.sort(key=lambda tple: tple[1], reverse=True)
+            k_nearest_neighbors = [j for (j, _) in others[:k]]
 
         return k_nearest_neighbors
